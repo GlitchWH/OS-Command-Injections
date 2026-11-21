@@ -1,1 +1,102 @@
+==================================================
+Lab 1: OS Command Injection (Simple Case)
+==================================================
 
+=======================
+WHAT THIS LAB IS ABOUT
+=======================
+
+A shopping website has a stock checker that tells you if a product is available at a chosen store.
+To check this, the website runs a shell command on its server, using the product ID and store ID you provide.
+It does not clean this input, so we can inject our own shell commands into it.
+
+Goal: run the whoami command and get back the name of the current server user.
+
+==============================
+HOW THE WEBSITE NORMALLY WORKS
+==============================
+
+When you check stock, the browser sends a request with a productId and a storeId.
+The server likely runs something like a shell script that checks stock using these two values together,
+for example checking stock for storeId 1. The output of that command is then shown back to you on the page.
+
+=======================
+ WHAT IS THE PROBLEM
+=======================
+
+The storeId value is placed directly inside a shell command on the server, with no filtering.
+Since shells allow more than one command to run in sequence, whatever we add after a semicolon
+gets executed as a separate, second command.
+
+===========================
+ONE THING TO UNDERSTAND
+===========================
+
+Semicolon: In a shell, a semicolon separates two commands written on the same line.
+The first command runs, then the second one runs right after it, regardless of what the first one did.
+So storeId equal to 1; whoami means run the stock check for store 1, then run whoami.
+
+======================================
+THE ATTACK
+======================================
+
+Instead of sending a normal storeId like 1, we send 1; whoami.
+
+The server builds a command using this value, so the final command becomes something like:
+
+check_stock 1; whoami
+
+The shell treats this as two separate commands. It checks stock for store 1, then runs whoami right after.
+The output of whoami, which is the name of the current server user, gets printed along with the normal response,
+and the raw output is shown back to us in the page.
+
+============================
+HOW TO SOLVE IT MANUALLY
+============================
+
+Open the lab and go to any product page.
+Intercept the stock check request, or use the browser dev tools to see the request being sent.
+Change the storeId value from 1 to 1; whoami.
+Send the request. The response now includes the username, and the lab is marked as solved.
+
+=========================
+WHAT THIS SCRIPT DOES
+=========================
+
+* It imports requests and starts a session, which keeps cookies between requests, similar to a browser.
+* It asks for the lab's base URL, then builds the full target URL by adding /product/stock to it.
+* It builds the payload. productId is left as a normal value, 1, while storeId is set to 1; whoami,
+  so the semicolon injects our command after the real one.
+* It sends a POST request to the stock check endpoint with this payload.
+* If the server responds with status 200, it prints the raw response text, which should include the
+  output of whoami along with the normal stock message.
+* If the connection fails or the server returns a different status, it prints an error instead.
+
+=============================
+WHY THIS HAPPENS
+=============================
+
+The server takes user input and places it directly inside a shell command without separating the two.
+Because the shell reads semicolons as command separators, anything we add after one gets executed
+as its own command, with the same permissions as the application.
+
+=============================
+HOW TO PREVENT THIS
+=============================
+
+Avoid passing user input directly into shell commands.
+If a system command must be used, pass user input as a properly escaped argument, never concatenated
+into the command string, or use safer APIs that do not invoke a shell at all.
+
+Other good practices:
+
+Validate input strictly, allowing only expected characters, like digits for an ID.
+Run application processes with the lowest possible permissions.
+Never return raw command output to the user.
+
+=============================
+ KEY POINTS TO REMEMBER
+=============================
+Never trust anything typed by a user.
+A semicolon in a shell command separates two commands, letting a second one run right after the first.
+Returning raw command output to the page gives an attacker direct feedback, making this kind of bug easy to exploit.
