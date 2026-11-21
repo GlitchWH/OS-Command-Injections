@@ -1,0 +1,101 @@
+==================================================
+Lab 3: Blind OS Command Injection with Time Delays
+==================================================
+
+=======================
+WHAT THIS LAB IS ABOUT
+=======================
+
+A website has a feedback form. When you submit it, the server runs a shell command using the details you entered.
+The command's output is not shown in the response, so we cannot read anything back directly.
+Instead, we use time to confirm the injection: if our command makes the server wait, the injection worked.
+
+Goal: make the server respond with a 10 second delay.
+
+==============================
+HOW THE WEBSITE NORMALLY WORKS
+==============================
+
+When you submit feedback, the browser sends the name, email, subject, and message to the server.
+The server likely uses the email value inside a shell command, for example to log or process the submission.
+The normal response is the same page either way, so there is no visible feedback from the command.
+
+=======================
+ WHAT IS THE PROBLEM
+=======================
+
+The email field is placed directly into a shell command without any filtering.
+Shells support several ways to chain commands, so text we add to the email value can run as a separate command.
+
+===========================
+THREE THINGS TO UNDERSTAND
+===========================
+
+Double pipe (||): In a shell, this runs the second command only if the first one fails.
+The first part, takethis@123, is not a valid command, so it fails, and the second command runs.
+Ping: The ping command sends network packets to an address. With -c 10, it sends 10 packets,
+one per second, so it takes roughly 9 to 10 seconds to finish. This gives us a measurable delay.
+CSRF token: The form includes a hidden token that the server checks. The script must fetch it
+from the feedback page first and send it back with the submission.
+
+======================================
+THE ATTACK
+======================================
+
+We put this value into the email field:
+
+takethis@123||ping -c 10 127.0.0.1||
+
+The server builds a command that roughly looks like:
+
+mail takethis@123||ping -c 10 127.0.0.1||
+
+The first part fails, so the shell runs ping. Ping takes around 10 seconds to finish, and the server
+does not respond until it does. That delay is the proof that our command ran.
+The trailing || is there so the shell stays valid after our command.
+
+============================
+HOW TO SOLVE IT MANUALLY
+============================
+
+Open the lab and go to the feedback page.
+Fill in any name, subject, and message, then enter the payload above in the email field.
+Submit the form. The response takes about 10 seconds to arrive, and the lab is marked as solved.
+
+=========================
+WHAT THIS SCRIPT DOES
+=========================
+
+* It creates a session and asks for the lab's base URL.
+* It loads the feedback page with a GET request, then searches the HTML for the CSRF token using a regular expression.
+* It stops if no token is found, since the submission would be rejected.
+* It builds the payload with the token and the injected email value.
+* It sends a POST request to the submit endpoint with a 20 second timeout, which is longer than the delay.
+* It prints the response text. Because the output is blind, this text is not the important part.
+
+=============================
+ONE THING TO KEEP IN MIND
+=============================
+
+The script does not measure the delay itself, so it cannot tell you whether the injection worked.
+You can check the time the server took using response.elapsed, which holds the time between sending
+the request and receiving the response. Printing this value shows whether the delay happened.
+
+=============================
+HOW TO PREVENT THIS
+=============================
+
+Do not pass user input into shell commands. Use the language's built-in functions for the task instead.
+If a command must be used, pass user input as a separate, escaped argument, never as part of the command string.
+
+Other good practices:
+
+Validate input, allowing only the characters an email address can contain.
+Run the application with the lowest permissions it needs.
+
+=============================
+ KEY POINTS TO REMEMBER
+=============================
+Blind injection can be confirmed by timing, even when no output is shown.
+The double pipe runs the next command when the first one fails.
+Never trust input from a user, even when the output is hidden from them.
