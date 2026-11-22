@@ -11,11 +11,9 @@ Each lab in this repo has its own folder containing:
 
 | # | Lab | Status |
 |---|-----|--------|
-| 1 | OS command injection, simple case | ⬜ Not started |
-| 2 | Blind OS command injection with time delays | ⬜ Not started |
-| 3 | Blind OS command injection with output redirection | ⬜ Not started |
-| 4 | Blind OS command injection with out-of-band interaction | ⬜ Not started |
-| 5 | Blind OS command injection with out-of-band data exfiltration | ⬜ Not started |
+| 1 | OS command injection, simple case | ✅ Solved |
+| 2 | Blind OS command injection with time delays | ✅ Solved |
+| 3 | Blind OS command injection with output redirection | ✅ Solved|
+| 4 | Blind OS command injection with out-of-band interaction | ✅ Solved |
 
-*(Table will be updated as I progress through the course.)*
 
