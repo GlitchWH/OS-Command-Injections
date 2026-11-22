@@ -1,0 +1,101 @@
+==================================================
+Lab 3: Blind OS Command Injection with Output Redirection
+==================================================
+
+=======================
+WHAT THIS LAB IS ABOUT
+=======================
+
+A website has a feedback form. When you submit it, the server runs a shell command using the details you entered.
+The command's output is not shown in the response, so we cannot read it directly.
+Instead, we redirect the output into a file inside a folder that the website serves publicly, then load that file through the browser.
+
+Goal: run the whoami command and retrieve its output.
+
+==============================
+HOW THE WEBSITE NORMALLY WORKS
+==============================
+
+When you submit feedback, the browser sends the name, email, subject, and message to the server.
+The server uses these values in a shell command, but the response page does not show the command's output.
+The website also serves product images from /var/www/images/ through the /image?filename= endpoint.
+
+=======================
+ WHAT IS THE PROBLEM
+=======================
+
+The email field is placed directly into a shell command without any filtering.
+That lets us add our own commands, and we can control where their output goes.
+
+===========================
+THREE THINGS TO UNDERSTAND
+===========================
+
+Double pipe (||): The second command runs only if the first one fails. The first part, mypunch@123, is not a valid command, so whoami runs.
+Output redirection (>): The > symbol sends a command's output into a file instead of the screen.
+Serving folder: /var/www/images/ is writable and publicly readable through /image, so a file we write there can be downloaded by the script.
+
+======================================
+THE ATTACK
+======================================
+
+We put this value into the email field:
+
+mypunch@123 ||whoami>/var/www/images/output.txt||
+
+The server builds a command that roughly looks like:
+
+mail mypunch@123 ||whoami>/var/www/images/output.txt||
+
+The first part fails, so the shell runs whoami. The > sends its output to output.txt inside the images folder.
+Nothing appears in the response, but the file now exists on the server.
+
+============================
+HOW TO SOLVE IT MANUALLY
+============================
+
+Open the lab and go to the feedback page.
+Fill in the fields and enter the payload above in the email field. Submit the form.
+Then open base_url/image?filename=output.txt in the browser. The username is shown, and the lab is marked as solved.
+
+=========================
+WHAT THIS SCRIPT DOES
+=========================
+
+Step 1: Inject the command
+* It loads the feedback page and extracts the CSRF token using a regular expression.
+* It sends a POST request to /feedback/submit with the token and the payload in the email field.
+* The payload writes the output of whoami into output.txt.
+
+Step 2: Read the output
+* It sends a GET request to /image with filename set to output.txt.
+* The params argument adds filename to the URL query string, which is where the server reads it.
+* The response body is the output of whoami, which is the answer to the lab.
+
+=============================
+WHY THIS HAPPENS
+=============================
+
+The server passes user input straight into a shell command. Shells support redirection, so an attacker can
+write command output into any folder the web server can write to. If that folder is also publicly served,
+the attacker can read the output back through the browser.
+
+=============================
+HOW TO PREVENT THIS
+=============================
+
+Do not pass user input into shell commands. Use the language's built-in functions for the task instead.
+If a command must be used, pass user input as a separate, escaped argument, never as part of the command string.
+
+Other good practices:
+
+Validate input, allowing only the characters an email address can contain.
+Keep writable folders separate from folders that are publicly served.
+Run the application with the lowest permissions it needs.
+
+=============================
+ KEY POINTS TO REMEMBER
+=============================
+Output redirection can turn a blind injection into a readable one by saving output to a file.
+Any writable folder that is publicly served becomes a way to exfiltrate data.
+Never trust input from a user, even when the output is hidden from them.
