@@ -16,4 +16,5 @@ Each lab in this repo has its own folder containing:
 | 3 | Blind OS command injection with output redirection | ✅ Solved|
 | 4 | Blind OS command injection with out-of-band interaction | ✅ Solved |
 
-
+## Author
+GlitchWH - (Waqas Hussain)
